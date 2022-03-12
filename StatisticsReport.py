@@ -2,46 +2,49 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 
+excelStocks = 'Data.xlsx'
+df = pd.read_excel(excelStocks, sheet_name='Ticker')
+dfTicker = pd.DataFrame(df, columns=['Ticker'])
 
-listSymbols = ['eli.br',
-'rio'
-'solb.br',
-'rand.as',
-'eurn.br',
-]
+df = pd.read_excel(excelStocks, sheet_name='Fields')
+dfFields = pd.DataFrame(df, columns=['Fields'])
+
+listFields=['Ticker'] + dfFields['Fields'].tolist()
 
 df = pd.DataFrame(
-  columns=['Tickr', 'Trailing P/E', 'Forward P/E', 'Trailing Annual Dividend Yield 3', 'Enterprise Value/EBITDA', 'Return on Equity (ttm)', 'Current Ratio (mrq)', 'Enterprise Value/EBITDA', 'Total Debt/Equity (mrq)'])
+     columns=listFields)
 
-symbolnr=0
-for symbol in listSymbols:
-  print(symbol)
+print(df)
 
-  url = f'https://finance.yahoo.com/quote/{symbol}/key-statistics?p={symbol}'
-  headers = {
-      'User-agent': 'Mozilla/5.0',
-  }
+symbolnr = 0
+for index, row in dfTicker.iterrows():
+    symbol = row['Ticker']
+    print(symbol)
 
-  print(url)
+    url = f'https://finance.yahoo.com/quote/{symbol}/key-statistics?p={symbol}'
+    headers = {
+        'User-agent': 'Mozilla/5.0',
+    }
 
-  r= requests.get(url, headers=headers)
+    print(url)
 
-  data=r.text
-  soup=BeautifulSoup(data, features="lxml")
+    r = requests.get(url, headers=headers)
 
-  tables = soup.findAll("table")
+    soup = BeautifulSoup(r.text, features="lxml")
 
-  df = df.append(pd.Series(), ignore_index=True)
-  df.iloc[-1, df.columns.get_loc('Tickr')] = symbol
+    tables = soup.findAll("table")
 
-  for table in tables:
-    for tr in table.find_all('tr'):
-      row = [td.text for td in tr.find_all('td')]
-      #print(f'{row[0]}xxx{row[1]}')
-      if row[0].rstrip() in df.columns:
-        df.iloc[-1, df.columns.get_loc(row[0].rstrip())] = row[1].rstrip()
-        # print(f'{row[0]:30}  {row[1]}')
-  symbolnr=++symbolnr
+    df = df.append(pd.Series(), ignore_index=True)
+    df.iloc[-1, df.columns.get_loc('Ticker')] = symbol
 
-#print(df.to_markdown)
-df.to_excel("output.xlsx")
+    for table in tables:
+        for tr in table.find_all('tr'):
+            row = [td.text for td in tr.find_all('td')]
+            # print(f'{row[0]}xxx{row[1]}')
+            if row[0].rstrip() in df.columns:
+                df.iloc[-1, df.columns.get_loc(row[0].rstrip())] = row[1].rstrip()
+                # print(f'{row[0]:30}  {row[1]}')
+    symbolnr = ++symbolnr
+
+df['Total Debt/Equity (mrq)'] = df['Total Debt/Equity (mrq)'] + '%'
+df.to_excel("FinancialData.xlsx")
